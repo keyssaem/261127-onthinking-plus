@@ -6,7 +6,7 @@ export function joinUrl(joinCode: string) {
   return `${window.location.origin}${import.meta.env.BASE_URL}join?code=${joinCode}`
 }
 
-function useQr(text: string) {
+export function useQr(text: string) {
   const [src, setSrc] = useState('')
   useEffect(() => {
     QRCode.toDataURL(text, { margin: 1, width: 600, errorCorrectionLevel: 'M', color: { dark: '#1b1b2b', light: '#ffffff' } })

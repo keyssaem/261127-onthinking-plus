@@ -109,6 +109,40 @@ try {
       setDoc(doc(db, mine.docs[0].ref.path), { status: '확인' }, { merge: true }))
   }
   await expectDeny('반 친구 문장 전체 보기', () => getDocs(collection(db, `classes/${CID}/submissions`)))
+
+  // ---------- 골든벨 ----------
+  const G = `classes/${CID}/games/g1`
+  await A.doc(G).set({ status: 'lobby', qIndex: -1, limitSec: 20, questions: [ITEM], vol: 1 })
+  await expectAllow('[골든벨] 게임 보기', () => getDoc(doc(db, G)))
+  await expectDeny('[골든벨] 학생이 게임 진행', () => setDoc(doc(db, G), { status: 'question' }, { merge: true }))
+  await expectDeny('[골든벨] 남의 번호로 참가', () =>
+    setDoc(doc(db, `${G}/players/4`), { number: 4, nickname: 'x', alive: true, score: 0, joinedAt: serverTimestamp() }))
+  await expectDeny('[골든벨] 점수 들고 참가', () =>
+    setDoc(doc(db, `${G}/players/3`), { number: 3, nickname: '하늘', alive: true, score: 9, joinedAt: serverTimestamp() }))
+  await expectAllow('[골든벨] 대기실 참가', () =>
+    setDoc(doc(db, `${G}/players/3`), { number: 3, nickname: '하늘', alive: true, score: 0, joinedAt: serverTimestamp() }))
+  const bellAns = (q, r) => ({ studentId: '3', qIndex: q, response: r, at: serverTimestamp() })
+  await expectDeny('[골든벨] 문제 열리기 전 답', () => setDoc(doc(db, `${G}/answers/3__0`), bellAns(0, 1)))
+  await A.doc(G).update({ status: 'question', qIndex: 0, startedAt: new Date() })
+  await expectDeny('[골든벨] 다른 문제 번호로 답', () => setDoc(doc(db, `${G}/answers/3__1`), bellAns(1, 1)))
+  await expectAllow('[골든벨] 답 제출', () => setDoc(doc(db, `${G}/answers/3__0`), bellAns(0, 1)))
+  await expectDeny('[골든벨] 답 바꾸기', () => setDoc(doc(db, `${G}/answers/3__0`), bellAns(0, 2)))
+  // 2차 시도 기록을 꾸며도 골든벨 정답은 못 읽음
+  const BELL = 'L2-044-골든벨'
+  const fake = (isCorrect) => setDoc(doc(db, `classes/${CID}/attempts/${uid}__${BELL}__2`), {
+    uid, studentId: '3', itemId: BELL, wordId: 'L2-044', stage: '골든벨', type: 'bell', mode: 'solo',
+    tryNo: 2, response: [0], timeMs: 1, createdAt: serverTimestamp(), isCorrect,
+  })
+  await fake(false).catch(() => fake(true))
+  await expectDeny('[골든벨] 2차 시도 꾸며 정답 읽기', () => getDoc(doc(db, 'answers', BELL)))
+  await A.doc(G).update({ startedAt: new Date(Date.now() - 60000) })
+  await A.doc(`${G}/answers/3__0`).delete()
+  await expectDeny('[골든벨] 시간 지난 답', () => setDoc(doc(db, `${G}/answers/3__0`), bellAns(0, 1)))
+  await A.doc(`${G}/players/3`).delete()
+  await expectDeny('[골든벨] 진행 중 살아 있는 채로 참가', () =>
+    setDoc(doc(db, `${G}/players/3`), { number: 3, nickname: '하늘', alive: true, score: 0, joinedAt: serverTimestamp() }))
+  await expectAllow('[골든벨] 진행 중 응원단으로 참가', () =>
+    setDoc(doc(db, `${G}/players/3`), { number: 3, nickname: '하늘', alive: false, score: 0, joinedAt: serverTimestamp() }))
   await expectDeny('다른 학생인 척 기록', () =>
     setDoc(doc(collection(db, `classes/${CID}/attempts`)), {
       uid, studentId: '4', itemId: ITEM, wordId: 'L2-044', stage: '적용1', type: 'scene_fill', mode: 'solo',

@@ -6,6 +6,7 @@ import { Heart, Mascot, PixelCat, Star, XpBar, catForNumber } from '../component
 import { auth, db } from '../lib/firebase'
 import { studentBase } from '../lib/learning'
 import { leaveStudent, useStudent } from '../lib/student'
+import { useLiveGameId } from '../lib/bell'
 import type { WordIndexEntry, WordProgress } from '../lib/types'
 
 type Filter = 'all' | 'todo' | 'doing' | 'done'
@@ -102,6 +103,7 @@ export default function WordList() {
         </div>
       </section>
 
+      {!student.guest && student.class_id && <BellBanner classId={student.class_id} />}
       {!student.guest && student.class_id && <TeacherReplies classId={student.class_id} words={words} />}
 
       {/* 권 · 필터 · 검색 */}
@@ -224,5 +226,19 @@ function TeacherReplies({ classId, words }: { classId: string; words: WordIndexE
         </Mascot>
       ))}
     </section>
+  )
+}
+
+/** 선생님이 골든벨을 열면 나타나는 참가 버튼 */
+function BellBanner({ classId }: { classId: string }) {
+  const live = useLiveGameId(classId)
+  if (!live) return null
+  return (
+    <Link
+      to="/bell"
+      className="pixel-btn go bob mt-6 flex w-full items-center justify-center gap-3 py-5 font-pixel text-2xl sm:text-3xl"
+    >
+      🔔 골든벨이 열렸어요! 참가하기 ▶
+    </Link>
   )
 }

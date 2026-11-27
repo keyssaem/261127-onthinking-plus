@@ -11,8 +11,9 @@ import { recordAttempt } from '../lib/learning'
 import { useStudent } from '../lib/student'
 import { STAGE_LABEL, STAGE_ORDER, type Item, type Word } from '../lib/types'
 
-/** 채점 가능한 문항만 출제 (정답 미입력 문항은 건너뜀) */
-const playable = (it: Item) => it.type === 'card' || it.type === 'sentence_write' || it.answer_ready
+/** 채점 가능한 학습 단계 문항만 출제 (정답 미입력 문항·골든벨 전용 문항은 건너뜀) */
+const playable = (it: Item) =>
+  (STAGE_ORDER as readonly string[]).includes(it.stage) && (it.type === 'card' || it.type === 'sentence_write' || it.answer_ready)
 
 function neighborId(wordId: string, delta: number) {
   const n = Number(wordId.split('-')[1]) + delta

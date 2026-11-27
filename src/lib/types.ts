@@ -23,6 +23,7 @@ export type ItemType =
   | 'scene_fill'
   | 'paragraph_fill'
   | 'sentence_write'
+  | 'bell'
 
 export type Item = {
   id: string

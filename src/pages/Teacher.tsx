@@ -285,6 +285,9 @@ function ClassPanel({ cls }: { cls: ClassRow }) {
             {label}
           </button>
         ))}
+        <Link to={`/bell/host/${cls.id}`} className="pixel-btn go ml-auto px-5 py-2 font-pixel">
+          🔔 골든벨 열기
+        </Link>
       </div>
 
       <div className="mt-5">

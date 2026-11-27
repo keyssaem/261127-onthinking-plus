@@ -13,6 +13,7 @@
     "deploy:rules": "node scripts/deploy-rules.mjs",
     "deploy:web": "node scripts/deploy-pages.mjs",
     "make:admin": "node scripts/make-admin.mjs",
+    "make:bell": "node scripts/make-bell.mjs",
     "pull:l2": "node scripts/pull-l2.mjs",
     "test:rules": "node --env-file=.env.local scripts/test-rules.mjs"
   },

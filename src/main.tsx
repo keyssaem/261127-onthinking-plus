@@ -8,6 +8,8 @@ import WordList from './pages/WordList'
 import LearnWord from './pages/LearnWord'
 import Teacher from './pages/Teacher'
 import Review from './pages/Review'
+import BellHost from './pages/bell/BellHost'
+import BellPlay from './pages/bell/BellPlay'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -19,6 +21,8 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/learn/:wordId" element={<LearnWord />} />
         <Route path="/teacher" element={<Teacher />} />
         <Route path="/review" element={<Review />} />
+        <Route path="/bell" element={<BellPlay />} />
+        <Route path="/bell/host/:classId" element={<BellHost />} />
       </Routes>
     </BrowserRouter>
   </StrictMode>,

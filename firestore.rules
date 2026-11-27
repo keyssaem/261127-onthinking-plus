@@ -54,6 +54,20 @@ service cloud.firestore {
         && d.createdAt == request.time;
     }
 
+    // 골든벨 답 검증
+    function bellAnswerOk(classId, gameId, answerId) {
+      let g = get(/databases/$(database)/documents/classes/$(classId)/games/$(gameId)).data;
+      let d = request.resource.data;
+      return d.keys().hasOnly(['studentId', 'qIndex', 'response', 'at'])
+        && d.studentId == me().studentId
+        && answerId == d.studentId + '__' + string(d.qIndex)
+        && g.status == 'question'
+        && d.qIndex == g.qIndex
+        && d.response is int && d.response >= 0 && d.response <= 3
+        && d.at == request.time
+        && request.time < g.startedAt + duration.value(g.limitSec + 2, 's');
+    }
+
     // ---------------- 콘텐츠 ----------------
     match /meta/{docId} { allow read: if true;       allow write: if false; }
     match /words/{id}   { allow read: if true;       allow write: if false; }
@@ -67,9 +81,10 @@ service cloud.firestore {
       allow create, delete: if false;
     }
     match /answers/{itemId} {
+      // 골든벨 문항 정답은 교사(진행 화면)만 — 학생이 2차 시도 기록을 꾸며 미리 보는 것 방지
       allow get: if isTeacher() || isAdmin()
-        || (signedIn() && exists(/databases/$(database)/documents/guests/$(request.auth.uid)/attempts/$(request.auth.uid + '__' + itemId + '__2')))
-        || (hasMember()
+        || (!itemId.matches('.*-골든벨$') && signedIn() && exists(/databases/$(database)/documents/guests/$(request.auth.uid)/attempts/$(request.auth.uid + '__' + itemId + '__2')))
+        || (!itemId.matches('.*-골든벨$') && hasMember()
             && exists(/databases/$(database)/documents/classes/$(me().classId)/attempts/$(request.auth.uid + '__' + itemId + '__2')));
       allow list: if false;
       allow create, update: if isAdmin()
@@ -151,9 +166,35 @@ service cloud.firestore {
           && request.resource.data.text.size() <= 300;
         allow update, delete: if isTeacherOf(classId);
       }
+
+      // ---------- 골든벨 (교사가 진행, 학생은 참가·답 제출만) ----------
+      match /games/{gameId} {
+        allow read: if isTeacherOf(classId) || isMemberOf(classId);
+        allow write: if isTeacherOf(classId);
+
+        // 참가자: 학생이 자기 번호로 한 번 만든다. 대기실이 아니면 탈락 상태로만(중간 참가는 응원단)
+        match /players/{studentId} {
+          allow read: if isTeacherOf(classId) || isMemberOf(classId);
+          allow create: if isMemberOf(classId)
+            && studentId == me().studentId
+            && request.resource.data.keys().hasOnly(['number', 'nickname', 'alive', 'score', 'joinedAt'])
+            && request.resource.data.score == 0
+            && request.resource.data.alive == (get(/databases/$(database)/documents/classes/$(classId)/games/$(gameId)).data.status == 'lobby');
+          allow update, delete: if isTeacherOf(classId);
+        }
+
+        // 답: 지금 열린 문제에, 제한 시간 안에, 한 번만 (채점은 교사 화면이 정답을 읽어서)
+        match /answers/{answerId} {
+          allow read: if isTeacherOf(classId)
+            || (isMemberOf(classId) && resource.data.studentId == me().studentId);
+          allow create: if isMemberOf(classId) && bellAnswerOk(classId, gameId, answerId);
+          allow update: if false;
+          allow delete: if isTeacherOf(classId);
+        }
+      }
     }
 
-    // ---------------- 학급 학생 입장 ----------------
+    // ---------------- 학급 학생 입장) ----------------
     match /members/{uid} {
       allow read: if signedIn() && (uid == request.auth.uid || isTeacherOf(resource.data.classId));
       allow create, update: if isAnon() && uid == request.auth.uid
