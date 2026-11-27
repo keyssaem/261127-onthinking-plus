@@ -1,0 +1,185 @@
+rules_version = '2';
+
+// =====================================================================
+// 온생각 플러스 · Firestore 보안 규칙   (게시: npm run deploy:rules)
+//
+//  - 교사 = 구글 로그인 / 학생 = 익명 로그인
+//  - 학급 학생: 학급코드 + 번호 + 닉네임으로 스스로 입장 (교사의 사전 등록 없음)
+//  - 비회원(혼자 연습): 학급 없이 guests/{uid} 아래에만 기록
+//  - 정답(answers)은 학생이 읽을 수 없다. 응답 기록을 쓸 때 규칙이 정답과 비교해
+//    isCorrect 값이 맞는 경우에만 저장을 허용 → 서버 채점과 같은 효과
+//  - 두 번째 시도(…__2)를 기록한 학생만 그 문항 정답을 열람
+// =====================================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function isAnon() {
+      return signedIn() && request.auth.token.firebase.sign_in_provider == 'anonymous';
+    }
+    function isGoogle() {
+      return signedIn() && request.auth.token.firebase.sign_in_provider == 'google.com';
+    }
+    function isTeacher() {
+      return isGoogle() && exists(/databases/$(database)/documents/teachers/$(request.auth.uid));
+    }
+    function isTeacherOf(classId) {
+      return isGoogle()
+        && get(/databases/$(database)/documents/classes/$(classId)).data.teacherUid == request.auth.uid;
+    }
+    function isAdmin() {
+      return isGoogle() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+    function hasMember() {
+      return signedIn() && exists(/databases/$(database)/documents/members/$(request.auth.uid));
+    }
+    function me() { return get(/databases/$(database)/documents/members/$(request.auth.uid)).data; }
+    function isMemberOf(classId) { return hasMember() && me().classId == classId; }
+
+    // 정답 비교 (정답 미입력 문항은 null)
+    function expectedCorrect(itemId, response) {
+      return exists(/databases/$(database)/documents/answers/$(itemId))
+        ? get(/databases/$(database)/documents/answers/$(itemId)).data.answer == response
+        : null;
+    }
+    // 응답 기록 공통 검증
+    function validAttempt(attemptId, studentId) {
+      let d = request.resource.data;
+      return d.uid == request.auth.uid
+        && d.studentId == studentId
+        && d.tryNo in [1, 2]
+        && (d.tryNo == 1 || attemptId == request.auth.uid + '__' + d.itemId + '__2')
+        && d.isCorrect == expectedCorrect(d.itemId, d.response)
+        && d.createdAt == request.time;
+    }
+
+    // ---------------- 콘텐츠 ----------------
+    match /meta/{docId} { allow read: if true;       allow write: if false; }
+    match /words/{id}   { allow read: if true;       allow write: if false; }
+    match /items/{id} {
+      allow read: if signedIn();
+      // 정답 검수(관리자): 문구·보기 교정과 검수 표시만
+      allow update: if isAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['prompt', 'options', 'answer_ready', 'verified', 'reviewedAt', 'reviewedBy'])
+        && request.resource.data.answer_ready is bool;
+      allow create, delete: if false;
+    }
+    match /answers/{itemId} {
+      allow get: if isTeacher() || isAdmin()
+        || (signedIn() && exists(/databases/$(database)/documents/guests/$(request.auth.uid)/attempts/$(request.auth.uid + '__' + itemId + '__2')))
+        || (hasMember()
+            && exists(/databases/$(database)/documents/classes/$(me().classId)/attempts/$(request.auth.uid + '__' + itemId + '__2')));
+      allow list: if false;
+      allow create, update: if isAdmin()
+        && request.resource.data.answer is list
+        && request.resource.data.answer.size() >= 1
+        && request.resource.data.word_id is string;
+      allow delete: if false;
+    }
+
+    // ---------------- 관리자 (정답 검수) : 콘솔/스크립트로만 지정 ----------------
+    match /admins/{uid} {
+      allow get: if signedIn() && uid == request.auth.uid;
+      allow list, write: if false;
+    }
+
+    // ---------------- 교사 ----------------
+    match /teachers/{uid} {
+      allow read, write: if isGoogle() && uid == request.auth.uid;
+    }
+
+    // ---------------- 학급 ----------------
+    match /joinCodes/{code} {
+      allow get: if signedIn();
+      allow create: if isTeacher()
+        && getAfter(/databases/$(database)/documents/classes/$(request.resource.data.classId)).data.teacherUid
+           == request.auth.uid;
+      allow delete: if isTeacherOf(resource.data.classId);
+    }
+
+    match /classes/{classId} {
+      // 학급 이름은 입장 화면에서 확인용으로 보여 줌
+      allow get: if signedIn();
+      allow list: if isGoogle() && resource.data.teacherUid == request.auth.uid;
+      allow create: if isTeacher() && request.resource.data.teacherUid == request.auth.uid;
+      allow update: if isTeacherOf(classId)
+        && request.resource.data.teacherUid == resource.data.teacherUid;
+      allow delete: if isTeacherOf(classId);
+
+      // 학생 명단: 학생이 입장할 때 스스로 생성 (members 와 같은 일괄 쓰기에서)
+      match /students/{studentId} {
+        allow get: if signedIn();
+        allow list: if isTeacherOf(classId) || isMemberOf(classId);
+        allow create, update: if isTeacherOf(classId)
+          || (isAnon()
+              && studentId.matches('^[0-9]{1,2}$')
+              && request.resource.data.number == int(studentId)
+              && request.resource.data.nickname is string
+              && request.resource.data.nickname.size() >= 1
+              && request.resource.data.nickname.size() <= 12
+              && getAfter(/databases/$(database)/documents/members/$(request.auth.uid)).data.classId == classId
+              && getAfter(/databases/$(database)/documents/members/$(request.auth.uid)).data.studentId == studentId);
+        allow delete: if isTeacherOf(classId);
+      }
+
+      match /attempts/{attemptId} {
+        allow read: if isTeacherOf(classId)
+          || (isMemberOf(classId) && resource.data.uid == request.auth.uid);
+        allow create, update: if isMemberOf(classId) && validAttempt(attemptId, me().studentId);
+        allow delete: if isTeacherOf(classId);
+      }
+
+      match /progress/{progressId} {
+        allow read: if isTeacherOf(classId)
+          || (isMemberOf(classId) && resource.data.studentId == me().studentId);
+        allow create, update: if isMemberOf(classId)
+          && request.resource.data.studentId == me().studentId
+          && progressId == me().studentId + '__' + request.resource.data.wordId;
+        allow delete: if isTeacherOf(classId);
+      }
+
+      match /submissions/{subId} {
+        allow read: if isTeacherOf(classId)
+          || (isMemberOf(classId) && resource.data.uid == request.auth.uid);
+        allow create: if isMemberOf(classId)
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.studentId == me().studentId
+          && request.resource.data.status == '제출'
+          && request.resource.data.text is string
+          && request.resource.data.text.size() <= 300;
+        allow update, delete: if isTeacherOf(classId);
+      }
+    }
+
+    // ---------------- 학급 학생 입장 ----------------
+    match /members/{uid} {
+      allow read: if signedIn() && (uid == request.auth.uid || isTeacherOf(resource.data.classId));
+      allow create, update: if isAnon() && uid == request.auth.uid
+        && request.resource.data.studentId is string
+        && request.resource.data.studentId.matches('^[0-9]{1,2}$')
+        && exists(/databases/$(database)/documents/classes/$(request.resource.data.classId));
+      allow delete: if signedIn() && (uid == request.auth.uid || isTeacherOf(resource.data.classId));
+    }
+
+    // ---------------- 비회원 혼자 연습 ----------------
+    match /guests/{uid} {
+      allow read, write: if isAnon() && uid == request.auth.uid;
+
+      match /attempts/{attemptId} {
+        allow read: if isAnon() && uid == request.auth.uid;
+        allow create, update: if isAnon() && uid == request.auth.uid && validAttempt(attemptId, uid);
+      }
+      match /progress/{progressId} {
+        allow read: if isAnon() && uid == request.auth.uid;
+        allow create, update: if isAnon() && uid == request.auth.uid
+          && request.resource.data.studentId == uid
+          && progressId == uid + '__' + request.resource.data.wordId;
+      }
+      match /submissions/{subId} {
+        allow read, create: if isAnon() && uid == request.auth.uid;
+      }
+    }
+  }
+}

@@ -1,0 +1,35 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# 교육청 저작물 원문/추출본 (비공개 유지)
+data/raw/
+docs/source_text/
+
+# Firebase 관리자 키 (절대 공유 금지)
+.secrets/
+# 교재에서 뽑은 낱말·문항 데이터와 교재 분석 문서 (공개 저장소에 올리지 않음)
+data/
+docs/*
+!docs/FIREBASE_설정.md
