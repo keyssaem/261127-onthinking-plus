@@ -40,7 +40,7 @@ export type BellGame = {
   teamScore: [number, number]
   winner: number | null // 줄다리기 이긴 팀
 }
-export type BellPlayer = { id: string; number: number; nickname: string; alive: boolean; score: number; team?: 0 | 1 }
+export type BellPlayer = { id: string; number: number; nickname: string; cat?: string; alive: boolean; score: number; team?: 0 | 1 }
 
 export const MODES: Record<GameMode, { emoji: string; name: string; desc: string; rules: string[] }> = {
   bell: {

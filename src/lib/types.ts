@@ -44,6 +44,7 @@ export type Student = {
   nickname: string
   level: number
   guest: boolean
+  cat: CatName
 }
 
 export type WordProgress = {
@@ -65,3 +66,10 @@ export const STAGE_LABEL: Record<string, string> = {
   적용2: '글에 맞는 말',
   활용: '한 문장 쓰기',
 }
+
+/** 학생이 고르는 고양이 (components/pixel 의 CAT_COLORS 와 같은 이름) */
+export const CAT_NAMES = ['cheese', 'gray', 'cream', 'black'] as const
+export type CatName = (typeof CAT_NAMES)[number]
+/** 저장된 고양이가 없거나 잘못되면 번호로 정해지는 기본 고양이 */
+export const catOf = (cat: unknown, n: number): CatName =>
+  typeof cat === 'string' && (CAT_NAMES as readonly string[]).includes(cat) ? (cat as CatName) : CAT_NAMES[Math.abs(n) % 4]

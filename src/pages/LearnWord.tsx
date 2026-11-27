@@ -3,7 +3,7 @@ import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom'
 import BlankQuestion from '../components/BlankQuestion'
 import SentenceWrite from '../components/SentenceWrite'
 import Shell, { PlayerBadge, Spinner } from '../components/Shell'
-import { Mascot, Star, XpBar, catForNumber } from '../components/pixel'
+import { Mascot, Star, XpBar } from '../components/pixel'
 import WordCard from '../components/WordCard'
 import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore'
 import { db } from '../lib/firebase'
@@ -122,7 +122,7 @@ export default function LearnWord() {
           </h2>
           <p className="pixel-title sm mt-3 font-pixel text-lg">‘{word.headword}’ 공부 끝!</p>
 
-          <Mascot color={catForNumber(student.number)} className="mt-8 w-full max-w-md text-left">
+          <Mascot color={student.cat} className="mt-8 w-full max-w-md text-left">
             {scored > 0 ? (
               <>
                 문제 {scored}개 중 <b className="text-ok">{correct}개</b>를 맞혔어!

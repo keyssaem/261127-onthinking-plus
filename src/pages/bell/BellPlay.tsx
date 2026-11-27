@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { doc, getDoc, onSnapshot, serverTimestamp, setDoc } from 'firebase/firestore'
 import Shell, { PlayerBadge, Spinner } from '../../components/Shell'
-import { Mascot, PixelCat, Star, catForNumber } from '../../components/pixel'
+import { Mascot, PixelCat, Star } from '../../components/pixel'
 import Rope from '../../components/Rope'
 import { db } from '../../lib/firebase'
 import { useStudent } from '../../lib/student'
@@ -71,6 +71,7 @@ function Game({ student, classId, gameId }: { student: Student; classId: string;
     setDoc(playerRef, {
       number: student.number,
       nickname: student.nickname,
+      cat: student.cat,
       alive: game.status === 'lobby',
       score: 0,
       joinedAt: serverTimestamp(),
@@ -91,7 +92,7 @@ function Game({ student, classId, gameId }: { student: Student; classId: string;
         <p className="pixel-title sm font-pixel">
           {game.vol}권 · {game.questions.length}문제
         </p>
-        <PixelCat color={catForNumber(student.number)} size={6} className="bob" />
+        <PixelCat color={student.cat} size={6} className="bob" />
         <Mascot color="cream" size={3} className="w-full text-left">
           {me ? '참가 완료! 선생님이 시작할 때까지 기다려요. 화면을 끄지 마세요.' : '참가하는 중…'}
           {game.mode === 'tug' && me && <span className="block text-sm text-ink-soft">시작하면 팀이 정해져요.</span>}
@@ -236,11 +237,11 @@ function Round({ game, me, classId, student }: { game: BellGame; me: BellPlayer 
       <div className="mt-5">
         {err && <p className="mb-3 font-pixel text-sm text-bad">{err}</p>}
         {isQuestion ? (
-          <Mascot color={catForNumber(student.number)} size={3}>
+          <Mascot color={student.cat} size={3}>
             {picked !== null ? '답을 보냈어! 정답 공개를 기다려요 ✉️' : left > 0 ? `${Math.ceil(left)}초 남았어!` : '시간 끝!'}
           </Mascot>
         ) : rv ? (
-          <Mascot color={catForNumber(student.number)} size={3}>
+          <Mascot color={student.cat} size={3}>
             {right ? (
               <b className="text-ok">⭕ 정답! </b>
             ) : (

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { onAuthStateChanged, signInAnonymously, signOut, type User } from 'firebase/auth'
 import { doc, getDoc, serverTimestamp, writeBatch } from 'firebase/firestore'
 import { auth, db, isPermissionError } from './firebase'
-import type { Student } from './types'
+import { catOf, type CatName, type Student } from './types'
 
 const MODE_KEY = 'onthink.mode' // 'class' | 'guest'
 function setMode(mode: 'class' | 'guest' | null) {
@@ -68,15 +68,16 @@ export async function lookupClass(joinCode: string): Promise<ClassInfo> {
   return { classId, name: (cls.data()?.name as string) ?? '' }
 }
 
-/** 같은 번호로 이미 들어온 친구가 있는지 (닉네임 반환) */
-export async function existingNickname(classId: string, number: number): Promise<string | null> {
+/** 같은 번호로 이미 들어온 친구가 있는지 (닉네임·고양이 반환) */
+export async function existingStudent(classId: string, number: number): Promise<{ nickname: string; cat: CatName } | null> {
   if (!db) return null
   const s = await getDoc(doc(db, 'classes', classId, 'students', String(number))).catch(() => null)
-  return s?.exists() ? ((s.data().nickname as string) ?? null) : null
+  if (!s?.exists()) return null
+  return { nickname: (s.data().nickname as string) ?? '', cat: catOf(s.data().cat, number) }
 }
 
 /** 2단계: 번호·닉네임으로 학급에 들어가기 (교사 사전 등록 없음) */
-export async function joinClass(classId: string, number: number, nickname: string) {
+export async function joinClass(classId: string, number: number, nickname: string, cat: CatName) {
   if (!db) throw new Error('Firebase 설정이 필요합니다')
   const user = await ensureAnon()
   const sid = String(number)
@@ -84,7 +85,7 @@ export async function joinClass(classId: string, number: number, nickname: strin
   batch.set(doc(db, 'members', user.uid), { classId, studentId: sid, joinedAt: serverTimestamp() })
   batch.set(
     doc(db, 'classes', classId, 'students', sid),
-    { number, nickname: nickname.trim(), level: 2, lastJoinedAt: serverTimestamp() },
+    { number, nickname: nickname.trim(), cat, level: 2, lastJoinedAt: serverTimestamp() },
     { merge: true },
   )
   try {
@@ -157,9 +158,10 @@ export function useStudent() {
             nickname: (d.nickname as string) ?? '',
             level: Number(d.level ?? 2),
             guest: false,
+            cat: catOf(d.cat, Number(d.number ?? studentId)),
           })
         } else if (getMode() === 'guest') {
-          setStudent({ id: user.uid, class_id: null, number: 0, nickname: '연습생', level: 2, guest: true })
+          setStudent({ id: user.uid, class_id: null, number: 0, nickname: '연습생', level: 2, guest: true, cat: 'cheese' })
         } else {
           setStudent(null)
         }

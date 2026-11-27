@@ -16,7 +16,8 @@ import {
   writeBatch,
 } from 'firebase/firestore'
 import Shell, { Spinner } from '../../components/Shell'
-import { PixelCat, Star, catForNumber } from '../../components/pixel'
+import { PixelCat, Star } from '../../components/pixel'
+import { catOf } from '../../lib/types'
 import { joinUrl, useQr } from '../../components/JoinQr'
 import Rope from '../../components/Rope'
 import { auth, db } from '../../lib/firebase'
@@ -376,7 +377,7 @@ function Lobby({ classId, game, players, cls }: HostProps & { cls: { name: strin
         <ul className="mt-4 grid flex-1 grid-cols-3 content-start gap-3 sm:grid-cols-5">
           {players.map((p) => (
             <li key={p.id} className="pop flex flex-col items-center gap-1 font-pixel text-sm">
-              <PixelCat color={catForNumber(p.number)} size={3} className="bob" />
+              <PixelCat color={catOf(p.cat, p.number)} size={3} className="bob" />
               <span className="max-w-full truncate">
                 {p.number}. {p.nickname}
               </span>
@@ -613,7 +614,7 @@ function PlayerStrip({ game, players, answers }: { game: BellGame; players: Bell
           className={`flex items-center gap-1 rounded-full border-2 border-ink px-2 py-0.5 font-pixel text-xs ${game.mode === 'tug' && p.team !== undefined ? TEAM[p.team].bg : 'bg-white'} ${eliminates(game.mode) && !p.alive ? 'opacity-40' : ''}`}
           title={p.nickname}
         >
-          <PixelCat color={catForNumber(p.number)} size={1} />
+          <PixelCat color={catOf(p.cat, p.number)} size={1} />
           {p.number}
           {answers && answers[p.id] !== undefined && <span className="text-ok">✓</span>}
         </li>
@@ -644,7 +645,7 @@ function Result({ game, players, onNew }: HostProps & { onNew: () => void }) {
             {winners.map((p) => (
               <li key={p.id} className="pop flex flex-col items-center gap-2 font-pixel">
                 <Star size={4} />
-                <PixelCat color={catForNumber(p.number)} size={5} className="bob" />
+                <PixelCat color={catOf(p.cat, p.number)} size={5} className="bob" />
                 <span className="text-lg">
                   {p.number}. {p.nickname}
                 </span>
@@ -672,7 +673,7 @@ function Result({ game, players, onNew }: HostProps & { onNew: () => void }) {
                     .filter((p) => p.team === t)
                     .map((p) => (
                       <li key={p.id} className="flex flex-col items-center font-pixel text-xs">
-                        <PixelCat color={catForNumber(p.number)} size={2} />
+                        <PixelCat color={catOf(p.cat, p.number)} size={2} />
                         {p.nickname}
                       </li>
                     ))}

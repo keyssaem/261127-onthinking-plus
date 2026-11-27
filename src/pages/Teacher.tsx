@@ -15,7 +15,7 @@ import {
 } from 'firebase/firestore'
 import { Link } from 'react-router-dom'
 import Shell, { Spinner } from '../components/Shell'
-import { PixelCat, catForNumber } from '../components/pixel'
+import { PixelCat } from '../components/pixel'
 import JoinQr from '../components/JoinQr'
 import { signOutAndReload } from '../lib/student'
 import { deleteClass } from '../lib/classAdmin'
@@ -318,7 +318,7 @@ function ClassPanel({
         {tab === 'live' && (
           <Dashboard classId={cls.id} className={cls.name} students={students} progress={progress} today={today} words={words} />
         )}
-        {tab === 'sentences' && <Submissions classId={cls.id} rows={submissions} words={words} />}
+        {tab === 'sentences' && <Submissions classId={cls.id} rows={submissions} words={words} cats={Object.fromEntries(students.map((s) => [s.id, s.cat]))} />}
         {tab === 'roster' && (
           <>
             <Roster cls={cls} students={students} />
@@ -353,7 +353,7 @@ function Roster({ cls, students }: { cls: ClassRow; students: StudentRow[] }) {
           <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6">
             {students.map((s) => (
               <li key={s.id} className="pixel-panel plain flex items-center gap-2 p-2">
-                <PixelCat color={catForNumber(s.number)} size={2} />
+                <PixelCat color={s.cat} size={2} />
                 <span className="min-w-0 flex-1 truncate font-pixel text-sm">
                   {s.number}. {s.nickname}
                 </span>

@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import Shell from '../components/Shell'
-import { Mascot, PixelCat, catForNumber } from '../components/pixel'
-import { existingNickname, joinClass, lookupClass, startGuest, type ClassInfo } from '../lib/student'
+import { CAT_COLORS, Mascot, PixelCat } from '../components/pixel'
+import { existingStudent, joinClass, lookupClass, startGuest, type ClassInfo } from '../lib/student'
+import { CAT_NAMES, catOf, type CatName } from '../lib/types'
 
 /**
  * 학생 입장 (교사의 사전 등록 없음)
- *  1) 학급코드 → 학급 확인   2) 번호 + 닉네임 → 입장
+ *  1) 학급코드 → 학급 확인   2) 번호 + 닉네임 + 고양이 고르기 → 입장
  *  또는 비회원 '혼자 연습'
  */
 export default function StudentJoin() {
@@ -16,6 +17,8 @@ export default function StudentJoin() {
   const [number, setNumber] = useState('')
   const [nickname, setNickname] = useState('')
   const [taken, setTaken] = useState<string | null>(null) // 같은 번호로 이미 들어온 닉네임
+  const [picked, setPicked] = useState<CatName | null>(null) // 직접 고른 고양이
+  const [prevCat, setPrevCat] = useState<CatName | null>(null) // 같은 번호로 전에 고른 고양이
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
@@ -55,13 +58,13 @@ export default function StudentJoin() {
       const n = Number(number)
       if (!n || n > 99) throw new Error('번호는 1~99 사이로 써 주세요')
       if (taken === null) {
-        const prev = await existingNickname(cls!.classId, n)
+        const prev = (await existingStudent(cls!.classId, n))?.nickname
         if (prev && prev !== nickname.trim()) {
           setTaken(prev) // 한 번 확인받기
           return
         }
       }
-      await joinClass(cls!.classId, n, nickname)
+      await joinClass(cls!.classId, n, nickname, cat)
       navigate('/learn')
     })
   }
@@ -74,6 +77,15 @@ export default function StudentJoin() {
 
   const input = 'pixel-input text-center font-pixel text-2xl'
   const n = Number(number)
+  const cat: CatName = picked ?? prevCat ?? catOf(null, n)
+
+  // 번호를 쓰면 전에 고른 고양이를 미리 골라 둠 (다시 들어올 때)
+  useEffect(() => {
+    setPrevCat(null)
+    if (!cls || !n || n > 99) return
+    const t = setTimeout(() => existingStudent(cls.classId, n).then((s) => s && setPrevCat(s.cat)), 300)
+    return () => clearTimeout(t)
+  }, [cls, n])
 
   return (
     <Shell>
@@ -119,9 +131,6 @@ export default function StudentJoin() {
                 코드 다시 입력
               </button>
             </div>
-            <div className="flex justify-center">
-              <PixelCat color={n ? catForNumber(n) : 'black'} size={5} className="bob" />
-            </div>
             <div className="grid grid-cols-[5rem_1fr] gap-3">
               <label className="block">
                 <span className="mb-1 block font-pixel text-sm">번호</span>
@@ -148,6 +157,32 @@ export default function StudentJoin() {
                   required
                 />
               </label>
+            </div>
+
+            {/* 나의 고양이 고르기 */}
+            <div>
+              <span className="mb-2 block font-pixel text-sm">나의 고양이를 골라요</span>
+              <div className="grid grid-cols-4 gap-2" role="radiogroup" aria-label="고양이 고르기">
+                {CAT_NAMES.map((c) => {
+                  const on = cat === c
+                  return (
+                    <button
+                      key={c}
+                      type="button"
+                      role="radio"
+                      aria-checked={on}
+                      aria-label={CAT_COLORS[c].name}
+                      onClick={() => setPicked(c)}
+                      className={`flex flex-col items-center gap-1 rounded-2xl border-[3px] border-ink p-2 transition ${
+                        on ? '-translate-y-1 bg-[#fff4c2] shadow-[0_5px_0_0_var(--color-ink)] ring-4 ring-star' : 'bg-white opacity-60 hover:opacity-100'
+                      }`}
+                    >
+                      <PixelCat color={c} size={3} className={on ? 'bob' : ''} />
+                      <span className="font-pixel text-xs">{CAT_COLORS[c].name}</span>
+                    </button>
+                  )
+                })}
+              </div>
             </div>
             {taken !== null && (
               <p className="rounded-xl border-2 border-ink bg-[#fff4c2] p-3 font-pixel text-sm">

@@ -11,11 +11,11 @@ import {
   where,
 } from 'firebase/firestore'
 import { db } from '../../lib/firebase'
-import type { WordIndexEntry } from '../../lib/types'
+import { catOf, type CatName, type WordIndexEntry } from '../../lib/types'
 
 /** 교사 대시보드용 실시간 데이터 (학급 하나) */
 
-export type StudentRow = { id: string; number: number; nickname: string }
+export type StudentRow = { id: string; number: number; nickname: string; cat: CatName }
 export type ProgressRow = {
   studentId: string
   wordId: string
@@ -63,7 +63,12 @@ export function useStudents(classId: string) {
       onSnapshot(collection(db!, 'classes', classId, 'students'), (snap) =>
         setRows(
           snap.docs
-            .map((d) => ({ id: d.id, number: d.data().number as number, nickname: d.data().nickname as string }))
+            .map((d) => ({
+              id: d.id,
+              number: d.data().number as number,
+              nickname: d.data().nickname as string,
+              cat: catOf(d.data().cat, d.data().number as number),
+            }))
             .sort((a, b) => a.number - b.number),
         ),
       ),

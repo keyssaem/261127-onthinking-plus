@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { collection, doc, getDoc, getDocs, query as fsQuery, where } from 'firebase/firestore'
 import Shell, { PlayerBadge, Spinner } from '../components/Shell'
-import { Heart, Mascot, PixelCat, Star, XpBar, catForNumber } from '../components/pixel'
+import { Heart, Mascot, PixelCat, Star, XpBar } from '../components/pixel'
 import { auth, db } from '../lib/firebase'
 import { studentBase } from '../lib/learning'
 import { leaveStudent, useStudent } from '../lib/student'
@@ -71,7 +71,7 @@ export default function WordList() {
   const total = words?.length ?? 293
   const done = Object.values(progress).filter((p) => statusOf(p) === 'done').length
   const touched = Object.keys(progress).length
-  const cat = catForNumber(student.number)
+  const cat = student.cat
 
   return (
     <Shell

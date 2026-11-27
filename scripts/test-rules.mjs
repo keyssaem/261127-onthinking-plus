@@ -93,9 +93,13 @@ try {
   await expectAllow('스스로 입장(3번 하늘)', async () => {
     const b = writeBatch(db)
     b.set(doc(db, 'members', uid), { classId: CID, studentId: '3', joinedAt: serverTimestamp() })
-    b.set(doc(db, `classes/${CID}/students/3`), { number: 3, nickname: '하늘', level: 2 }, { merge: true })
+    b.set(doc(db, `classes/${CID}/students/3`), { number: 3, nickname: '하늘', cat: 'cream', level: 2 }, { merge: true })
     await b.commit()
   })
+  await expectDeny('없는 고양이로 바꾸기', () =>
+    setDoc(doc(db, `classes/${CID}/students/3`), { number: 3, nickname: '하늘', cat: 'tiger', level: 2 }, { merge: true }))
+  await expectAllow('고양이 바꾸기(까망)', () =>
+    setDoc(doc(db, `classes/${CID}/students/3`), { number: 3, nickname: '하늘', cat: 'black', level: 2 }, { merge: true }))
   await expectAllow('반 친구 명단 보기', () => getDocs(collection(db, `classes/${CID}/students`)))
   await solveChecks('학급', `classes/${CID}`, uid, '3')
   // 교사 답장: 학생은 자기 문장만 읽고, 스스로 '확인' 처리할 수 없음
@@ -120,7 +124,7 @@ try {
   await expectDeny('[골든벨] 점수 들고 참가', () =>
     setDoc(doc(db, `${G}/players/3`), { number: 3, nickname: '하늘', alive: true, score: 9, joinedAt: serverTimestamp() }))
   await expectAllow('[골든벨] 대기실 참가', () =>
-    setDoc(doc(db, `${G}/players/3`), { number: 3, nickname: '하늘', alive: true, score: 0, joinedAt: serverTimestamp() }))
+    setDoc(doc(db, `${G}/players/3`), { number: 3, nickname: '하늘', cat: 'cream', alive: true, score: 0, joinedAt: serverTimestamp() }))
   const bellAns = (q, r) => ({ studentId: '3', qIndex: q, response: r, at: serverTimestamp() })
   await expectDeny('[골든벨] 문제 열리기 전 답', () => setDoc(doc(db, `${G}/answers/3__0`), bellAns(0, 1)))
   await A.doc(G).update({ status: 'question', qIndex: 0, startedAt: new Date() })

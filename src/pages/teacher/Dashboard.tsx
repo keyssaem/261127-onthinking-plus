@@ -3,7 +3,7 @@ import ClassTree from '../../components/ClassTree'
 import { db } from '../../lib/firebase'
 import { useTree } from '../../lib/tree'
 import { useMemo, useState } from 'react'
-import { PixelCat, catForNumber } from '../../components/pixel'
+import { PixelCat } from '../../components/pixel'
 import { STAGE_LABEL } from '../../lib/types'
 import {
   ago,
@@ -186,7 +186,7 @@ function StudentLine({
               className={`inline-block h-2.5 w-2.5 shrink-0 rounded-full ${isActive ? 'animate-pulse bg-xp' : r.todayCount ? 'bg-star' : 'bg-grid'}`}
               title={isActive ? '지금 공부 중' : r.todayCount ? '오늘 공부함' : '오늘 아직'}
             />
-            <PixelCat color={catForNumber(r.number)} size={2} />
+            <PixelCat color={r.cat} size={2} />
             <span className="truncate">
               {r.number}. {r.nickname}
             </span>

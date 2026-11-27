@@ -135,6 +135,7 @@ service cloud.firestore {
               && request.resource.data.nickname is string
               && request.resource.data.nickname.size() >= 1
               && request.resource.data.nickname.size() <= 12
+              && (!('cat' in request.resource.data) || request.resource.data.cat in ['cheese', 'gray', 'cream', 'black'])
               && getAfter(/databases/$(database)/documents/members/$(request.auth.uid)).data.classId == classId
               && getAfter(/databases/$(database)/documents/members/$(request.auth.uid)).data.studentId == studentId);
         allow delete: if isTeacherOf(classId);
@@ -194,7 +195,7 @@ service cloud.firestore {
           allow read: if isTeacherOf(classId) || isMemberOf(classId);
           allow create: if isMemberOf(classId)
             && studentId == me().studentId
-            && request.resource.data.keys().hasOnly(['number', 'nickname', 'alive', 'score', 'joinedAt'])
+            && request.resource.data.keys().hasOnly(['number', 'nickname', 'cat', 'alive', 'score', 'joinedAt'])
             && request.resource.data.score == 0
             && request.resource.data.alive == (get(/databases/$(database)/documents/classes/$(classId)/games/$(gameId)).data.status == 'lobby');
           allow update, delete: if isTeacherOf(classId);

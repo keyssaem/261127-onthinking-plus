@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { doc, serverTimestamp, updateDoc } from 'firebase/firestore'
-import { PixelCat, catForNumber } from '../../components/pixel'
+import { PixelCat } from '../../components/pixel'
+import { catOf, type CatName } from '../../lib/types'
 import { db } from '../../lib/firebase'
 import { ago, useNow, type SubmissionRow } from './classData'
 
@@ -11,9 +12,12 @@ export default function Submissions({
   classId,
   rows,
   words,
+  cats,
 }: {
   classId: string
   rows: SubmissionRow[] | null
+  /** 번호 → 학생이 고른 고양이 */
+  cats: Record<string, CatName>
   words: Record<string, string>
 }) {
   const now = useNow()
@@ -35,7 +39,7 @@ export default function Submissions({
       {shown.length ? (
         <ul className="grid gap-3 md:grid-cols-2">
           {shown.map((s) => (
-            <Card key={s.id} s={s} classId={classId} headword={words[s.wordId] ?? s.wordId} now={now} />
+            <Card key={s.id} s={s} classId={classId} headword={words[s.wordId] ?? s.wordId} now={now} cat={cats[s.studentId] ?? catOf(null, Number(s.studentId))} />
           ))}
         </ul>
       ) : (
@@ -47,11 +51,10 @@ export default function Submissions({
   )
 }
 
-function Card({ s, classId, headword, now }: { s: SubmissionRow; classId: string; headword: string; now: number }) {
+function Card({ s, classId, headword, now, cat }: { s: SubmissionRow; classId: string; headword: string; now: number; cat: CatName }) {
   const [feedback, setFeedback] = useState(s.feedback)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
-  const num = Number(s.studentId)
 
   async function review(status: '확인' | '다시') {
     setBusy(true)
@@ -80,7 +83,7 @@ function Card({ s, classId, headword, now }: { s: SubmissionRow; classId: string
   return (
     <li className="pixel-panel plain p-4">
       <div className="flex items-center gap-2 font-pixel text-sm">
-        <PixelCat color={catForNumber(num || 0)} size={2} />
+        <PixelCat color={cat} size={2} />
         <b>
           {s.studentId}. {s.nickname}
         </b>
