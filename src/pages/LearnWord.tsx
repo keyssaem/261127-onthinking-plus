@@ -7,9 +7,9 @@ import { Mascot, Star, XpBar } from '../components/pixel'
 import WordCard from '../components/WordCard'
 import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore'
 import { db } from '../lib/firebase'
-import { recordAttempt } from '../lib/learning'
+import { recordAttempt, recordHanja, tracedHanja } from '../lib/learning'
 import { useStudent } from '../lib/student'
-import { STAGE_LABEL, STAGE_ORDER, type Item, type Word } from '../lib/types'
+import { STAGE_LABEL, STAGE_ORDER, type Item, type Word, type WordIndexEntry } from '../lib/types'
 
 /** 채점 가능한 학습 단계 문항만 출제 (정답 미입력 문항·골든벨 전용 문항은 건너뜀) */
 const playable = (it: Item) =>
@@ -22,13 +22,17 @@ function neighborId(wordId: string, delta: number) {
 
 export default function LearnWord() {
   const { wordId = '' } = useParams()
-  const startStage = useSearchParams()[0].get('stage') // 예: ?stage=활용 (선생님 '다시 써 볼까?' 링크)
+  const [params] = useSearchParams()
+  const startStage = params.get('stage') // 예: ?stage=활용 (선생님 '다시 써 볼까?' 링크)
+  const randomVol = Number(params.get('random')) || null // 랜덤 익히기: 다음 낱말도 같은 권에서 무작위
   const { student, loading } = useStudent()
   const [word, setWord] = useState<Word | null>(null)
   const [items, setItems] = useState<Item[] | null>(null)
   const [step, setStep] = useState(0)
   const [results, setResults] = useState<boolean[]>([])
   const [busy, setBusy] = useState(false)
+  const [traced, setTraced] = useState<string[]>([]) // 이 낱말에서 따라 쓴 한자
+  const [randomNext, setRandomNext] = useState<string | null>(null)
 
   useEffect(() => {
     if (!db || !student) return
@@ -45,12 +49,23 @@ export default function LearnWord() {
         .sort((a, b) => STAGE_ORDER.indexOf(a.stage as never) - STAGE_ORDER.indexOf(b.stage as never))
       setItems(list)
       setStep(Math.max(0, list.findIndex((i) => i.stage === startStage)))
+      tracedHanja(student, wordId).then((t) => alive && setTraced(t))
       setResults([])
     })
     return () => {
       alive = false
     }
   }, [wordId, student, startStage])
+
+  // 랜덤 익히기: 같은 권의 다른 낱말 하나를 미리 골라 둠
+  useEffect(() => {
+    setRandomNext(null)
+    if (!db || !randomVol) return
+    getDoc(doc(db, 'meta', 'wordIndexL2')).then((s) => {
+      const pool = ((s.data()?.words ?? []) as WordIndexEntry[]).filter((w) => w.book_vol === randomVol && w.id !== wordId)
+      if (pool.length) setRandomNext(pool[Math.floor(Math.random() * pool.length)].id)
+    })
+  }, [randomVol, wordId])
 
   if (loading) return <Spinner />
   if (!student) return <Navigate to="/join" replace />
@@ -92,7 +107,16 @@ export default function LearnWord() {
             STAGE {step + 1}/{items.length} · No.{word.seq} {word.headword}
           </p>
           {current.type === 'card' ? (
-            <WordCard word={word} onAnswer={answerCard} busy={busy} />
+            <WordCard
+              word={word}
+              onAnswer={answerCard}
+              busy={busy}
+              traced={traced}
+              onTraced={(ch) => {
+                setTraced((t) => (t.includes(ch) ? t : [...t, ch]))
+                recordHanja(student, word.id, ch).catch(() => {})
+              }}
+            />
           ) : current.type === 'sentence_write' ? (
             <SentenceWrite key={current.id} item={current} headword={word.headword} student={student} onDone={next} />
           ) : (
@@ -143,7 +167,11 @@ export default function LearnWord() {
             >
               ↺ 다시 하기
             </button>
-            {nextWord ? (
+            {randomVol && randomNext ? (
+              <Link to={`/learn/${randomNext}?random=${randomVol}`} className="pixel-btn go py-4 font-pixel text-xl">
+                🎲 다음 랜덤 낱말 ▶
+              </Link>
+            ) : nextWord ? (
               <Link to={`/learn/${nextWord}`} className="pixel-btn go py-4 font-pixel text-xl">
                 다음 낱말 ▶
               </Link>

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, Navigate } from 'react-router-dom'
+import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { collection, doc, getDoc, getDocs, query as fsQuery, where } from 'firebase/firestore'
 import Shell, { PlayerBadge, Spinner } from '../components/Shell'
 import { Heart, Mascot, PixelCat, Star, XpBar } from '../components/pixel'
@@ -31,6 +31,7 @@ export default function WordList() {
   const [vol, setVol] = useState(1)
   const [filter, setFilter] = useState<Filter>('all')
   const [query, setQuery] = useState('')
+  const navigate = useNavigate()
 
   useEffect(() => {
     if (!db || !student) return
@@ -49,6 +50,7 @@ export default function WordList() {
           correct: p.correct ?? 0,
           wrong: p.wrong ?? 0,
           last_seen: null,
+          hanja: p.hanja ?? [],
         }
       })
       setProgress(map)
@@ -65,12 +67,22 @@ export default function WordList() {
     )
   }, [words, vol, filter, query, progress])
 
+  /** 지금 권에서 아직 익히지 않은 낱말 하나를 무작위로 (다 익혔으면 전체에서) */
+  function goRandom() {
+    const inVol = (words ?? []).filter((w) => w.book_vol === vol)
+    const fresh = inVol.filter((w) => statusOf(progress[w.id]) !== 'done')
+    const pool = fresh.length ? fresh : inVol
+    if (!pool.length) return
+    navigate(`/learn/${pool[Math.floor(Math.random() * pool.length)].id}?random=${vol}`)
+  }
+
   if (loading) return <Spinner />
   if (!student) return <Navigate to="/join" replace />
 
   const total = words?.length ?? 293
   const done = Object.values(progress).filter((p) => statusOf(p) === 'done').length
   const touched = Object.keys(progress).length
+  const hanjaCount = Object.values(progress).reduce((n, p) => n + (p.hanja?.length ?? 0), 0)
   const cat = student.cat
 
   return (
@@ -98,8 +110,14 @@ export default function WordList() {
             </span>
             <span className="flex items-center gap-1">
               <Star size={2} /> 익힘 {done}
+              <span className="text-ink-soft">/ {total}</span>
             </span>
-            <span className="text-ink-soft">/ {total}</span>
+            <span className="flex items-center gap-1" title="따라 쓰기에 성공한 한자 수">
+              <span className="grid h-[18px] w-[18px] place-items-center rounded-[4px] border-2 border-ink bg-heart text-[11px] leading-none text-white">
+                漢
+              </span>
+              한자 {hanjaCount}
+            </span>
           </div>
           <XpBar value={done} max={total} className="mt-3 max-w-md" />
         </div>
@@ -123,6 +141,14 @@ export default function WordList() {
             {v}권
           </button>
         ))}
+        <button
+          onClick={goRandom}
+          disabled={!words}
+          className="pixel-btn go px-4 py-2 font-pixel"
+          title="아직 익히지 않은 낱말 중에서 골라요"
+        >
+          🎲 {vol}권 랜덤 익히기
+        </button>
         <select
           value={filter}
           onChange={(e) => setFilter(e.target.value as Filter)}

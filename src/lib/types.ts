@@ -53,6 +53,8 @@ export type WordProgress = {
   correct: number
   wrong: number
   last_seen: string | null
+  /** 따라 쓰기에 성공한 한자 */
+  hanja?: string[]
 }
 
 export const STAGE_ORDER = ['이해1', '이해2', '확장1', '확장2', '적용1', '적용2', '활용'] as const

@@ -1,14 +1,21 @@
+import { useState } from 'react'
 import { canSpeak, speak } from '../lib/speak'
+import { HanjaPractice } from './HanjaTrace'
 import type { Word } from '../lib/types'
 
 type Props = {
   word: Word
   onAnswer?: (known: boolean) => void
   busy?: boolean
+  /** 한자 따라 쓰기: 이미 쓴 글자 · 성공 시 기록 */
+  traced?: string[]
+  onTraced?: (ch: string) => void
 }
 
 /** 이해1: 낱말의 사전적 의미 (한자 · 뜻 · 예문 · 관련 낱말) + 알아요/몰라요 */
-export default function WordCard({ word, onAnswer, busy }: Props) {
+export default function WordCard({ word, onAnswer, busy, traced = [], onTraced }: Props) {
+  const [tracing, setTracing] = useState(false)
+  const hanjaChars = [...(word.hanja ?? '')].filter((c) => /\p{Script=Han}/u.test(c))
   const readAll = () =>
     speak(`${word.headword}. ${word.senses.map((s) => `${s.definition} ${s.examples.join('. ')}`).join('. ')}`)
 
@@ -29,14 +36,33 @@ export default function WordCard({ word, onAnswer, busy }: Props) {
         )}
       </div>
 
-      {!!word.hanja_gloss?.length && (
-        <div className="mt-4 flex flex-wrap gap-2">
-          {word.hanja_gloss.map((g) => (
+      {(!!word.hanja_gloss?.length || (onTraced && hanjaChars.length > 0)) && (
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          {word.hanja_gloss?.map((g) => (
             <span key={g} className="pixel-chip bg-[#fff4c2] text-base">
               {g}
             </span>
           ))}
+          {onTraced && hanjaChars.length > 0 && (
+            <button onClick={() => setTracing(true)} className="pixel-btn primary px-3 py-1.5 font-pixel text-sm">
+              ✍️ 한자 따라 쓰기
+              {traced.length > 0 && (
+                <span className="ml-1 text-xs">
+                  ({hanjaChars.filter((c) => traced.includes(c)).length}/{hanjaChars.length})
+                </span>
+              )}
+            </button>
+          )}
         </div>
+      )}
+      {tracing && onTraced && (
+        <HanjaPractice
+          hanja={word.hanja ?? ''}
+          glosses={word.hanja_gloss ?? []}
+          done={traced}
+          onPass={onTraced}
+          onClose={() => setTracing(false)}
+        />
       )}
 
       <ol className="mt-5 space-y-3">

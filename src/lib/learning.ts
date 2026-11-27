@@ -1,4 +1,5 @@
 import {
+  arrayUnion,
   collection,
   doc,
   getDoc,
@@ -106,4 +107,22 @@ export async function submitSentence(student: Student, item: Item, text: string)
     createdAt: serverTimestamp(),
   })
   await recordAttempt(student, item, { text })
+}
+
+/** 한자 따라 쓰기 성공 → 낱말 진도에 그 글자 기록 (같은 낱말의 같은 글자는 한 번만 셈) */
+export async function recordHanja(student: Student, wordId: string, ch: string) {
+  if (!db) return
+  await setDoc(
+    doc(db, ...studentBase(student), 'progress', `${student.id}__${wordId}`),
+    { studentId: student.id, wordId, hanja: arrayUnion(ch), last_seen: serverTimestamp() },
+    { merge: true },
+  )
+  if (!student.guest && student.class_id) growTree(student.class_id, student.id)
+}
+
+/** 이 낱말에서 이미 따라 쓴 한자 */
+export async function tracedHanja(student: Student, wordId: string): Promise<string[]> {
+  if (!db) return []
+  const s = await getDoc(doc(db, ...studentBase(student), 'progress', `${student.id}__${wordId}`)).catch(() => null)
+  return (s?.data()?.hanja as string[] | undefined) ?? []
 }
