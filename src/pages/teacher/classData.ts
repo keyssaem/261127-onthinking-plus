@@ -23,6 +23,7 @@ export type ProgressRow = {
   wrong: number
   stage: string | null
   lastSeen: number // ms
+  hanja: string[] // 따라 쓰기에 성공한 한자
 }
 export type AttemptRow = {
   id: string
@@ -92,6 +93,7 @@ export function useProgress(classId: string) {
               wrong: p.wrong ?? 0,
               stage: p.stage ?? null,
               lastSeen: ms(p.last_seen),
+              hanja: (p.hanja as string[] | undefined) ?? [],
             }
           }),
         ),
@@ -195,6 +197,7 @@ export const pct = (a: number, b: number) => (b ? Math.round((a / b) * 100) : nu
 /** 학생별 요약 */
 export type StudentSummary = StudentRow & {
   touched: number
+  hanja: number
   mastered: number
   correct: number
   wrong: number
@@ -213,12 +216,13 @@ export function useSummaries(
     const by = new Map<string, StudentSummary>()
     for (const s of students)
       by.set(s.id, {
-        ...s, touched: 0, mastered: 0, correct: 0, wrong: 0, todayCount: 0, todayFirst: 0, todayFirstOk: 0, lastAt: 0,
+        ...s, touched: 0, hanja: 0, mastered: 0, correct: 0, wrong: 0, todayCount: 0, todayFirst: 0, todayFirstOk: 0, lastAt: 0,
       })
     for (const p of progress ?? []) {
       const s = by.get(p.studentId)
       if (!s) continue
       s.touched++
+      s.hanja += p.hanja.length
       if (isMastered(p)) s.mastered++
       s.correct += p.correct
       s.wrong += p.wrong

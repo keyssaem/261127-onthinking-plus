@@ -109,13 +109,14 @@ export default function Dashboard({
             <p className="py-6 text-center font-pixel text-sm text-ink-soft">아직 들어온 학생이 없어요.</p>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[34rem] border-separate border-spacing-y-1 font-pixel text-sm">
+              <table className="w-full min-w-[38rem] border-separate border-spacing-y-1 font-pixel text-sm">
                 <thead className="text-left text-xs text-ink-soft">
                   <tr>
                     <th className="px-2 font-normal">학생</th>
                     <th className="px-2 font-normal">오늘</th>
                     <th className="px-2 font-normal">전체 정답률</th>
                     <th className="w-40 px-2 font-normal">익힌 낱말</th>
+                    <th className="px-2 font-normal" title="따라 쓰기에 성공한 한자 수">漢 한자</th>
                     <th className="px-2 text-right font-normal">마지막</th>
                   </tr>
                 </thead>
@@ -135,7 +136,7 @@ export default function Dashboard({
               </table>
             </div>
           )}
-          <p className="mt-2 font-pixel text-xs text-ink-soft">● 초록 = 지금 공부 중 · 노랑 = 오늘 공부함 │ 익힌 낱말 막대: 노랑 = 공부한 낱말, 초록 = 그중 익힌 낱말(정답 3번) │ 학생 줄을 누르면 낱말별 기록이 열려요.</p>
+          <p className="mt-2 font-pixel text-xs text-ink-soft">● 초록 = 지금 공부 중 · 노랑 = 오늘 공부함 │ 익힌 낱말 막대: 노랑 = 공부한 낱말, 초록 = 그중 익힌 낱말(정답 3번) │ 漢 = 따라 쓰기에 성공한 한자 수 │ 학생 줄을 누르면 낱말별 기록이 열려요 (따라 쓴 한자는 낱말 옆 빨간 글자).</p>
         </section>
 
         <div className="space-y-6">
@@ -217,13 +218,23 @@ function StudentLine({
             </span>
           </div>
         </td>
+        <td className="border-y-2 border-ink px-2">
+          {r.hanja ? (
+            <span className="inline-flex items-center gap-1">
+              <span className="grid h-4 w-4 place-items-center rounded-[3px] bg-heart text-[10px] leading-none text-white">漢</span>
+              {r.hanja}
+            </span>
+          ) : (
+            <span className="text-ink-soft">—</span>
+          )}
+        </td>
         <td className="rounded-r-xl border-y-2 border-r-2 border-ink px-2 text-right text-xs text-ink-soft">
           {ago(r.lastAt, now)}
         </td>
       </tr>
       {open && (
         <tr>
-          <td colSpan={5} className="px-1 pb-2">
+          <td colSpan={6} className="px-1 pb-2">
             <StudentWords studentId={r.id} progress={progress} words={words} now={now} />
           </td>
         </tr>
@@ -257,7 +268,10 @@ function StudentWords({
           className={`flex items-center justify-between gap-2 rounded-lg border-2 border-ink px-2 py-1 text-xs ${isMastered(p) ? 'bg-ok-bg' : p.wrong > p.correct ? 'bg-bad-bg' : 'bg-white'}`}
           title={`${p.stage ? STAGE_LABEL[p.stage] ?? p.stage : ''} · ${ago(p.lastSeen, now)}`}
         >
-          <span className="truncate">{words[p.wordId] ?? p.wordId}</span>
+          <span className="truncate">
+            {words[p.wordId] ?? p.wordId}
+            {p.hanja.length > 0 && <span className="ml-1 text-heart" title="따라 쓴 한자">{p.hanja.join('')}</span>}
+          </span>
           <span className="shrink-0">
             <span className="text-ok">○{p.correct}</span> <span className="text-bad">✕{p.wrong}</span>
           </span>
@@ -353,7 +367,7 @@ function HardWords({ progress, words }: { progress: ProgressRow[]; words: Record
 }
 
 function downloadCsv(className: string, rows: StudentSummary[], now: number) {
-  const head = ['번호', '닉네임', '공부한 낱말', '익힌 낱말', '정답 수', '오답 수', '전체 정답률(%)', '오늘 푼 문제', '오늘 첫 시도 정답률(%)', '마지막 활동']
+  const head = ['번호', '닉네임', '공부한 낱말', '익힌 낱말', '따라 쓴 한자 수', '정답 수', '오답 수', '전체 정답률(%)', '오늘 푼 문제', '오늘 첫 시도 정답률(%)', '마지막 활동']
   const esc = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`
   const lines = rows.map((r) =>
     [
@@ -361,6 +375,7 @@ function downloadCsv(className: string, rows: StudentSummary[], now: number) {
       r.nickname,
       r.touched,
       r.mastered,
+      r.hanja,
       r.correct,
       r.wrong,
       pct(r.correct, r.correct + r.wrong) ?? '',
