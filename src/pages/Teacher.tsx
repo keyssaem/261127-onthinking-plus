@@ -9,6 +9,7 @@ import {
   query,
   serverTimestamp,
   setDoc,
+  updateDoc,
   where,
   writeBatch,
 } from 'firebase/firestore'
@@ -17,6 +18,7 @@ import Shell, { Spinner } from '../components/Shell'
 import { PixelCat, catForNumber } from '../components/pixel'
 import JoinQr from '../components/JoinQr'
 import { signOutAndReload } from '../lib/student'
+import { deleteClass } from '../lib/classAdmin'
 import Dashboard from './teacher/Dashboard'
 import Submissions from './teacher/Submissions'
 import {
@@ -160,6 +162,7 @@ function TeacherHome({ user }: { user: User }) {
               className={`pixel-btn px-4 py-2 font-pixel ${selected?.id === c.id ? 'primary' : ''}`}
             >
               {c.name}
+              <span className="ml-1.5 text-xs opacity-60">{c.joinCode}</span>
             </button>
           ))}
           <NewClass
@@ -171,7 +174,20 @@ function TeacherHome({ user }: { user: User }) {
           />
         </div>
       </section>
-      {selected && <ClassPanel key={selected.id} cls={selected} />}
+      {selected && (
+        <ClassPanel
+          key={selected.id}
+          cls={selected}
+          onRenamed={(name) => {
+            setClasses((cs) => cs.map((c) => (c.id === selected.id ? { ...c, name } : c)))
+            setSelected({ ...selected, name })
+          }}
+          onDeleted={() => {
+            setClasses((cs) => cs.filter((c) => c.id !== selected.id))
+            setSelected(null)
+          }}
+        />
+      )}
     </div>
   )
 }
@@ -250,7 +266,15 @@ function NewClass({ uid, onCreated }: { uid: string; onCreated: (c: ClassRow) =>
 type Tab = 'live' | 'sentences' | 'roster'
 
 /** 학급 패널: 학급코드 + [실시간 현황 · 한 문장 검토 · 입장·명단] */
-function ClassPanel({ cls }: { cls: ClassRow }) {
+function ClassPanel({
+  cls,
+  onRenamed,
+  onDeleted,
+}: {
+  cls: ClassRow
+  onRenamed: (name: string) => void
+  onDeleted: () => void
+}) {
   const [tab, setTab] = useState<Tab>('live')
   const students = useStudents(cls.id)
   const progress = useProgress(cls.id)
@@ -295,7 +319,12 @@ function ClassPanel({ cls }: { cls: ClassRow }) {
           <Dashboard classId={cls.id} className={cls.name} students={students} progress={progress} today={today} words={words} />
         )}
         {tab === 'sentences' && <Submissions classId={cls.id} rows={submissions} words={words} />}
-        {tab === 'roster' && <Roster cls={cls} students={students} />}
+        {tab === 'roster' && (
+          <>
+            <Roster cls={cls} students={students} />
+            <ClassAdmin cls={cls} studentCount={students.length} onRenamed={onRenamed} onDeleted={onDeleted} />
+          </>
+        )}
       </div>
     </section>
   )
@@ -339,5 +368,93 @@ function Roster({ cls, students }: { cls: ClassRow; students: StudentRow[] }) {
         )}
       </div>
     </div>
+  )
+}
+
+/** 학급 관리: 이름 바꾸기 · 학급 삭제 (이름을 똑같이 입력해야 삭제) */
+function ClassAdmin({
+  cls,
+  studentCount,
+  onRenamed,
+  onDeleted,
+}: {
+  cls: ClassRow
+  studentCount: number
+  onRenamed: (name: string) => void
+  onDeleted: () => void
+}) {
+  const [name, setName] = useState(cls.name)
+  const [confirmText, setConfirmText] = useState('')
+  const [open, setOpen] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [progress, setProgress] = useState(0)
+  const [err, setErr] = useState('')
+
+  async function rename(e: FormEvent) {
+    e.preventDefault()
+    const n = name.trim()
+    if (!n || n === cls.name) return
+    await updateDoc(doc(db!, 'classes', cls.id), { name: n })
+    onRenamed(n)
+  }
+
+  async function remove() {
+    setBusy(true)
+    setErr('')
+    try {
+      await deleteClass(cls.id, cls.joinCode, setProgress)
+      onDeleted()
+    } catch (e) {
+      setErr(`삭제 중 문제가 생겼어요. 다시 눌러 주세요. (${String(e)})`)
+      setBusy(false)
+    }
+  }
+
+  return (
+    <section className="mt-8 border-t-[3px] border-dashed border-ink/30 pt-6 font-pixel">
+      <h4 className="mb-3">⚙️ 학급 관리</h4>
+      <form onSubmit={rename} className="flex flex-wrap items-center gap-2">
+        <input value={name} onChange={(e) => setName(e.target.value)} maxLength={20} className="pixel-input w-40 py-2" />
+        <button disabled={!name.trim() || name.trim() === cls.name} className="pixel-btn px-4 py-2 text-sm">
+          이름 바꾸기
+        </button>
+      </form>
+
+      {!open ? (
+        <button onClick={() => setOpen(true)} className="pixel-btn mt-4 px-4 py-2 text-sm text-bad">
+          🗑 이 학급 삭제…
+        </button>
+      ) : (
+        <div className="mt-4 rounded-2xl border-[3px] border-bad bg-bad-bg p-4 text-sm leading-relaxed">
+          <p className="text-base text-bad">⚠ ‘{cls.name}’ ({cls.joinCode}) 학급을 완전히 지울까요?</p>
+          <p className="mt-2">
+            학생 {studentCount}명의 명단, 풀이 기록, 진도, 한 문장, 게임 기록, 학급 나무가 모두 사라지고{' '}
+            <b>되돌릴 수 없어요.</b> 학급코드 {cls.joinCode} 로도 더 이상 들어올 수 없어요.
+          </p>
+          <label className="mt-3 block">
+            확인을 위해 학급 이름 <b>{cls.name}</b> 을(를) 그대로 입력하세요
+            <input
+              value={confirmText}
+              onChange={(e) => setConfirmText(e.target.value)}
+              className="pixel-input mt-1 py-2"
+              autoComplete="off"
+            />
+          </label>
+          {err && <p className="mt-2 text-bad">{err}</p>}
+          <div className="mt-3 flex gap-2">
+            <button
+              onClick={remove}
+              disabled={busy || confirmText.trim() !== cls.name}
+              className="pixel-btn px-4 py-2 text-bad disabled:opacity-40"
+            >
+              {busy ? `지우는 중… (${progress})` : '완전히 삭제'}
+            </button>
+            <button onClick={() => (setOpen(false), setConfirmText(''))} disabled={busy} className="pixel-btn px-4 py-2">
+              취소
+            </button>
+          </div>
+        </div>
+      )}
+    </section>
   )
 }

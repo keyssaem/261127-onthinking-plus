@@ -275,7 +275,8 @@ function Live({
 }) {
   const game = useGame(classId, gameId)
   const [players, setPlayers] = useState<BellPlayer[]>([])
-  const [answers, setAnswers] = useState<Record<string, Ans>>({})
+  // 문제 번호와 함께 저장: 다음 문제로 넘어간 직후 이전 문제 답이 섞여 자동 공개되는 것 방지
+  const [answersOf, setAnswersOf] = useState<{ q: number; map: Record<string, Ans> }>({ q: -1, map: {} })
 
   useEffect(
     () =>
@@ -289,7 +290,7 @@ function Live({
 
   const qIndex = game?.qIndex ?? -1
   useEffect(() => {
-    if (qIndex < 0) return setAnswers({})
+    if (qIndex < 0) return setAnswersOf({ q: -1, map: {} })
     return onSnapshot(
       query(collection(db!, 'classes', classId, 'games', gameId, 'answers'), where('qIndex', '==', qIndex)),
       (s) => {
@@ -298,7 +299,7 @@ function Live({
           const a = d.data({ serverTimestamps: 'estimate' })
           m[a.studentId] = { response: a.response, at: a.at instanceof Timestamp ? a.at.toMillis() : Date.now() }
         })
-        setAnswers(m)
+        setAnswersOf({ q: qIndex, map: m })
       },
     )
   }, [classId, gameId, qIndex])
@@ -317,6 +318,8 @@ function Live({
     })
     b.commit().catch(() => {})
   }, [game, players, classId])
+
+  const answers = answersOf.q === qIndex ? answersOf.map : {}
 
   if (game === undefined) return <Spinner />
   if (game === null)

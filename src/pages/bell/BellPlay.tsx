@@ -39,7 +39,7 @@ export default function BellPlay() {
       {liveId === undefined ? (
         <p className="pixel-title sm text-center font-pixel">불러오는 중…</p>
       ) : gameId ? (
-        <Game student={student} classId={student.class_id} gameId={gameId} />
+        <Game key={gameId} student={student} classId={student.class_id} gameId={gameId} />
       ) : (
         <div className="flex flex-col items-center gap-6 pt-6 text-center">
           <PixelCat color="gray" size={5} className="bob" />
