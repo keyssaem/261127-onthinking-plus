@@ -286,13 +286,13 @@ function ClassPanel({ cls }: { cls: ClassRow }) {
           </button>
         ))}
         <Link to={`/bell/host/${cls.id}`} className="pixel-btn go ml-auto px-5 py-2 font-pixel">
-          🔔 골든벨 열기
+          🎮 단체 게임
         </Link>
       </div>
 
       <div className="mt-5">
         {tab === 'live' && (
-          <Dashboard className={cls.name} students={students} progress={progress} today={today} words={words} />
+          <Dashboard classId={cls.id} className={cls.name} students={students} progress={progress} today={today} words={words} />
         )}
         {tab === 'sentences' && <Submissions classId={cls.id} rows={submissions} words={words} />}
         {tab === 'roster' && <Roster cls={cls} students={students} />}

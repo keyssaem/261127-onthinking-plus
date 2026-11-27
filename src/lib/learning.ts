@@ -9,6 +9,7 @@ import {
 } from 'firebase/firestore'
 import { auth, db, isPermissionError } from './firebase'
 import type { Item, Student } from './types'
+import { growTree } from './tree'
 
 /** 학생 기록 저장 위치: 학급 학생 → classes/{학급}, 비회원 → guests/{uid} */
 export function studentBase(student: Student): [string, string] {
@@ -62,6 +63,9 @@ export async function recordAttempt(
       isCorrect = false
     }
   }
+
+  // 학급 나무 (정답마다 +1)
+  if (isCorrect === true && !student.guest && student.class_id) growTree(student.class_id, student.id)
 
   // 낱말별 진도
   const known = item.type === 'card' ? response === '알아요' : undefined

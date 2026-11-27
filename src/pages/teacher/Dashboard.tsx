@@ -1,3 +1,7 @@
+import { doc, updateDoc } from 'firebase/firestore'
+import ClassTree from '../../components/ClassTree'
+import { db } from '../../lib/firebase'
+import { useTree } from '../../lib/tree'
 import { useMemo, useState } from 'react'
 import { PixelCat, catForNumber } from '../../components/pixel'
 import { STAGE_LABEL } from '../../lib/types'
@@ -20,12 +24,14 @@ type Sort = 'number' | 'today' | 'low'
 
 /** 실시간 현황: 요약 타일 · 학생별 표 · 실시간 피드 · 어려운 낱말 */
 export default function Dashboard({
+  classId,
   className,
   students,
   progress,
   today,
   words,
 }: {
+  classId: string
   className: string
   students: StudentRow[]
   progress: ProgressRow[] | null
@@ -65,6 +71,8 @@ export default function Dashboard({
           hint="두 번째 기회 전 첫 답 기준"
         />
       </div>
+
+      <TeacherTree classId={classId} />
 
       <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">
         {/* 학생별 표 */}
@@ -370,4 +378,41 @@ function downloadCsv(className: string, rows: StudentSummary[], now: number) {
   a.download = `온생각_${className}_${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}.csv`
   a.click()
   URL.revokeObjectURL(a.href)
+}
+
+/** 학급 나무 + 주간 목표 바꾸기 */
+function TeacherTree({ classId }: { classId: string }) {
+  const { count, goal } = useTree(classId)
+  const [edit, setEdit] = useState(false)
+  const [val, setVal] = useState('')
+  async function save() {
+    const n = Math.round(Number(val))
+    if (n >= 10 && n <= 100000) await updateDoc(doc(db!, 'classes', classId), { treeGoal: n })
+    setEdit(false)
+  }
+  return (
+    <ClassTree count={count} goal={goal} size={4}>
+      <div className="mt-2 flex items-center gap-2 text-xs">
+        {edit ? (
+          <>
+            <input
+              value={val}
+              onChange={(e) => setVal(e.target.value.replace(/\D/g, ''))}
+              className="pixel-input w-24 py-1 text-sm"
+              placeholder={String(goal)}
+              autoFocus
+            />
+            <button onClick={save} className="pixel-btn go px-3 py-1">
+              저장
+            </button>
+          </>
+        ) : (
+          <button onClick={() => (setVal(String(goal)), setEdit(true))} className="pixel-btn px-3 py-1">
+            🎯 주간 목표 바꾸기
+          </button>
+        )}
+        <span className="text-ink-soft">매주 월요일에 새로 자라요</span>
+      </div>
+    </ClassTree>
+  )
 }

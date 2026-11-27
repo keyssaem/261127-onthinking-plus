@@ -127,6 +127,27 @@ try {
   await expectDeny('[골든벨] 다른 문제 번호로 답', () => setDoc(doc(db, `${G}/answers/3__1`), bellAns(1, 1)))
   await expectAllow('[골든벨] 답 제출', () => setDoc(doc(db, `${G}/answers/3__0`), bellAns(0, 1)))
   await expectDeny('[골든벨] 답 바꾸기', () => setDoc(doc(db, `${G}/answers/3__0`), bellAns(0, 2)))
+  await A.doc(`${G}/answers/3__0`).delete()
+  await expectAllow('[초성] 글자 답 제출', () => setDoc(doc(db, `${G}/answers/3__0`), bellAns(0, '가능')))
+  await A.doc(`${G}/answers/3__0`).delete()
+  await expectDeny('[초성] 너무 긴 글자 답', () => setDoc(doc(db, `${G}/answers/3__0`), bellAns(0, '가'.repeat(21))))
+  await expectDeny('[골든벨] 범위 밖 보기 번호', () => setDoc(doc(db, `${G}/answers/3__0`), bellAns(0, 7)))
+
+  // ---------- 학급 나무 ----------
+  const W = 'w20261123'
+  const treeRef = doc(db, `classes/${CID}/tree/${W}__3`)
+  await expectAllow('[나무] 정답 +1 (처음)', () => setDoc(treeRef, { sid: '3', week: W, count: increment(1) }, { merge: true }))
+  await expectAllow('[나무] 정답 +1 (이어서)', () => setDoc(treeRef, { sid: '3', week: W, count: increment(1) }, { merge: true }))
+  await expectDeny('[나무] 한 번에 +5', () => setDoc(treeRef, { count: increment(5) }, { merge: true }))
+  await expectDeny('[나무] 처음부터 100', () =>
+    setDoc(doc(db, `classes/${CID}/tree/w20261130__3`), { sid: '3', week: 'w20261130', count: 100 }))
+  await expectDeny('[나무] 친구 몫 키우기', () =>
+    setDoc(doc(db, `classes/${CID}/tree/${W}__4`), { sid: '4', week: W, count: increment(1) }, { merge: true }))
+  await expectDeny('[나무] 단체 게임 몫 키우기', () =>
+    setDoc(doc(db, `classes/${CID}/tree/${W}__games`), { sid: 'games', week: W, count: increment(1) }, { merge: true }))
+  const tr = await expectAllow('[나무] 반 나무 보기', () =>
+    getDocs(query(collection(db, `classes/${CID}/tree`), where('week', '==', W))))
+  if (tr && tr.docs[0]?.data().count !== 2) bad(`나무 수 ${tr.docs[0]?.data().count}`)
   // 2차 시도 기록을 꾸며도 골든벨 정답은 못 읽음
   const BELL = 'L2-044-골든벨'
   const fake = (isCorrect) => setDoc(doc(db, `classes/${CID}/attempts/${uid}__${BELL}__2`), {

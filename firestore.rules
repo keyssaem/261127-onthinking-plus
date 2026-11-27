@@ -63,7 +63,8 @@ service cloud.firestore {
         && answerId == d.studentId + '__' + string(d.qIndex)
         && g.status == 'question'
         && d.qIndex == g.qIndex
-        && d.response is int && d.response >= 0 && d.response <= 3
+        && ((d.response is int && d.response >= 0 && d.response <= 3)
+            || (d.response is string && d.response.size() >= 1 && d.response.size() <= 20))
         && d.at == request.time
         && request.time < g.startedAt + duration.value(g.limitSec + 2, 's');
     }
@@ -165,6 +166,22 @@ service cloud.firestore {
           && request.resource.data.text is string
           && request.resource.data.text.size() <= 300;
         allow update, delete: if isTeacherOf(classId);
+      }
+
+      // ---------- 학급 나무: 이번 주 정답 수 (학생별 문서에 +1, 단체 게임 몫은 교사) ----------
+      match /tree/{docId} {
+        allow read: if isTeacherOf(classId) || isMemberOf(classId);
+        allow create: if isMemberOf(classId)
+          && request.resource.data.keys().hasOnly(['sid', 'week', 'count'])
+          && request.resource.data.sid == me().studentId
+          && request.resource.data.week is string && request.resource.data.week.size() <= 12
+          && docId == request.resource.data.week + '__' + me().studentId
+          && request.resource.data.count == 1;
+        allow update: if isMemberOf(classId)
+          && resource.data.sid == me().studentId
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['count'])
+          && request.resource.data.count == resource.data.count + 1;
+        allow create, update, delete: if isTeacherOf(classId);
       }
 
       // ---------- 골든벨 (교사가 진행, 학생은 참가·답 제출만) ----------
