@@ -40,7 +40,7 @@ async function ensureAnon(): Promise<User> {
   if (!auth) throw new Error('Firebase 설정이 필요합니다')
   if (auth.currentUser && !auth.currentUser.isAnonymous) {
     // 교사 계정 등 → 새 페이지에서 다시 시작
-    await signOutAndReload(appPath())
+    await signOutAndReload(appPath() + window.location.search)
     throw new Error('다시 시작하는 중…')
   }
   if (auth.currentUser) return auth.currentUser

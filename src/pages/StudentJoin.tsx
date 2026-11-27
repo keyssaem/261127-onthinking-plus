@@ -1,5 +1,5 @@
-import { useState, type FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import Shell from '../components/Shell'
 import { Mascot, PixelCat, catForNumber } from '../components/pixel'
 import { existingNickname, joinClass, lookupClass, startGuest, type ClassInfo } from '../lib/student'
@@ -30,6 +30,19 @@ export default function StudentJoin() {
       setBusy(false)
     }
   }
+
+  // QR(…/join?code=ABC123)로 열면 학급코드를 채우고 바로 확인
+  const [params] = useSearchParams()
+  const qrDone = useRef(false)
+  useEffect(() => {
+    if (qrDone.current) return
+    qrDone.current = true
+    const c = (params.get('code') ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6)
+    if (c.length !== 6) return
+    setCode(c)
+    run(async () => setCls(await lookupClass(c)))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const onCode = (e: FormEvent) => {
     e.preventDefault()

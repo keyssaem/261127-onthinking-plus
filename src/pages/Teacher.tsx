@@ -15,6 +15,7 @@ import {
 import { Link } from 'react-router-dom'
 import Shell, { Spinner } from '../components/Shell'
 import { PixelCat, catForNumber } from '../components/pixel'
+import JoinQr from '../components/JoinQr'
 import { signOutAndReload } from '../lib/student'
 import Dashboard from './teacher/Dashboard'
 import Submissions from './teacher/Submissions'
@@ -268,9 +269,13 @@ function ClassPanel({ cls }: { cls: ClassRow }) {
     <section className="pixel-panel p-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <h3 className="font-pixel text-2xl">{cls.name}</h3>
-        <div className="text-right">
-          <div className="font-pixel text-sm text-ink-soft">학급코드</div>
-          <div className="pixel-title font-pixel text-5xl tracking-widest">{cls.joinCode}</div>
+        <div className="flex items-center gap-4">
+          <div className="text-right">
+            <div className="font-pixel text-sm text-ink-soft">학급코드</div>
+            <div className="pixel-title font-pixel text-5xl tracking-widest">{cls.joinCode}</div>
+            <div className="mt-1 font-pixel text-xs text-ink-soft">QR을 누르면 크게 보여요</div>
+          </div>
+          <JoinQr joinCode={cls.joinCode} />
         </div>
       </div>
 
@@ -304,6 +309,7 @@ function Roster({ cls, students }: { cls: ClassRow; students: StudentRow[] }) {
     <div>
       <div className="rounded-2xl border-[3px] border-ink bg-[#fff4c2] p-4 font-pixel text-sm leading-relaxed">
         <b>학생 입장 방법</b> — 학생 등록은 필요 없어요!
+        <br />📷 위의 <b>QR을 카메라로 찍으면</b> 코드가 채워진 채 바로 열려요. 또는
         <br />① 첫 화면 → <b>학급코드로 입장</b> ② 코드 <b>{cls.joinCode}</b> 입력 ③ 자기 번호와 닉네임 입력
         <br />
         <span className="text-ink-soft">같은 번호로 다시 들어오면 같은 학생으로 이어서 기록돼요.</span>
